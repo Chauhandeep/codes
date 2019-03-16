@@ -98,7 +98,77 @@ def image_a_b_gen(batch_size):
 
 #Train model      
 model.compile(optimizer='rmsprop', loss='mse')
-model.fit_generator(image_a_b_gen(batch_size), epochs=50, steps_per_epoch=1000)
+
+checkpoint_path = "/home/deepanshu/Desktop/colorTraining/cp-{epoch:}.ckpt"
+checkpoint_dir = os.path.dirname(checkpoint_path)
+    
+cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, 
+                                                 save_weights_only=True,
+                                                 verbose=1)
+
+checkpoint_files = os.listdir('/home/deepanshu/Desktop/colorTraining')      
+
+numEpochs = 25
+
+def cmp_to_key(mycmp):
+    'Convert a cmp= function into a key= function'
+    class K:
+        def __init__(self, obj, *args):
+            self.obj = obj
+        def __lt__(self, other):
+            return mycmp(self.obj, other.obj) < 0
+        def __gt__(self, other):
+            return mycmp(self.obj, other.obj) > 0
+        def __eq__(self, other):
+            return mycmp(self.obj, other.obj) == 0
+        def __le__(self, other):
+            return mycmp(self.obj, other.obj) <= 0
+        def __ge__(self, other):
+            return mycmp(self.obj, other.obj) >= 0
+        def __ne__(self, other):
+            return mycmp(self.obj, other.obj) != 0
+    return K
+
+def compare(x, y):
+    num1 = int(re.findall('cp-([0-9]*).ckpt',x)[0])
+    num2 = int(re.findall('cp-([0-9]*).ckpt',y)[0])
+    if num1<num2:
+        return -1
+    elif num2<num1:
+        return 1
+    else:
+        return 0
+
+
+if len(checkpoint_files)==0:
+    model.fit_generator(image_a_b_gen(batch_size), epochs=numEpochs, steps_per_epoch=1000,callbacks = [cp_callback])
+else:
+    try:
+        checkpoint_files = sorted(checkpoint_files,key=cmp_to_key(compare))
+        number  = re.findall('cp-([0-9]*).ckpt',checkpoint_files[len(checkpoint_files)-1]) 
+        print(checkpoint_files[len(checkpoint_files)-1])
+        print(number[0])
+        classifier.load_weights(checkpoint_dir + '/' + checkpoint_files[len(checkpoint_files)-1])
+        for checkpoint in checkpoint_files:
+            os.rename(checkpoint_dir + '/' + checkpoint,'/home/deepanshu/Desktop/colorTrainingTemp' + checkpoint)
+        model.fit_generator(image_a_b_gen(batch_size),
+                                 steps_per_epoch = 100,
+                                 epochs = numEpochs-int(number[0]),
+                                 callbacks = [cp_callback])
+        #Renaming Checkpoints
+        new_checkpoints = os.listdir('/home/deepanshu/Desktop/colorTraining')
+        new_checkpoints = sorted(new_checkpoints,key=cmp_to_key(compare))
+        i=0
+        for checkpoint in new_checkpoints:
+            i=i+1
+            os.rename(checkpoint_dir + '/' + checkpoint,checkpoint_dir + '/cp-' + str(int(number[0])+i) + '.ckpt')
+    except KeyboardInterrupt:
+        new_checkpoints = os.listdir('/home/deepanshu/Desktop/colorTraining')
+        new_checkpoints = sorted(new_checkpoints,key=cmp_to_key(compare))
+        i=0
+        for checkpoint in new_checkpoints:
+            i=i+1
+            os.rename(checkpoint_dir + '/' + checkpoint,checkpoint_dir + '/cp-' + str(int(number[0])+i) + '.ckpt')
 
 
 color_me = []
