@@ -12,6 +12,7 @@ from keras.callbacks import TensorBoard
 from keras.models import Sequential, Model
 from keras.layers.core import RepeatVector, Permute
 from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
+import re
 import numpy as np
 import os
 import random
@@ -139,6 +140,7 @@ def compare(x, y):
     else:
         return 0
 
+#model.fit_generator(image_a_b_gen(batch_size), epochs=1, steps_per_epoch=1)
 
 if len(checkpoint_files)==0:
     model.fit_generator(image_a_b_gen(batch_size), epochs=numEpochs, steps_per_epoch=1000,callbacks = [cp_callback])
@@ -148,20 +150,21 @@ else:
         number  = re.findall('cp-([0-9]*).ckpt',checkpoint_files[len(checkpoint_files)-1]) 
         print(checkpoint_files[len(checkpoint_files)-1])
         print(number[0])
-        classifier.load_weights(checkpoint_dir + '/' + checkpoint_files[len(checkpoint_files)-1])
-        for checkpoint in checkpoint_files:
-            os.rename(checkpoint_dir + '/' + checkpoint,'/home/deepanshu/Desktop/colorTrainingTemp' + checkpoint)
-        model.fit_generator(image_a_b_gen(batch_size),
-                                 steps_per_epoch = 100,
-                                 epochs = numEpochs-int(number[0]),
-                                 callbacks = [cp_callback])
-        #Renaming Checkpoints
-        new_checkpoints = os.listdir('/home/deepanshu/Desktop/colorTraining')
-        new_checkpoints = sorted(new_checkpoints,key=cmp_to_key(compare))
-        i=0
-        for checkpoint in new_checkpoints:
-            i=i+1
-            os.rename(checkpoint_dir + '/' + checkpoint,checkpoint_dir + '/cp-' + str(int(number[0])+i) + '.ckpt')
+        model.load_weights(checkpoint_dir + '/' + checkpoint_files[len(checkpoint_files)-1])
+        if number[0] != numEpochs:
+            for checkpoint in checkpoint_files:
+                os.rename(checkpoint_dir + '/' + checkpoint,'/home/deepanshu/Desktop/colorTrainingTemp/' + checkpoint)
+            model.fit_generator(image_a_b_gen(batch_size),
+                                     steps_per_epoch = 100,
+                                     epochs = numEpochs-int(number[0]),
+                                     callbacks = [cp_callback])
+            #Renaming Checkpoints
+            new_checkpoints = os.listdir('/home/deepanshu/Desktop/colorTraining')
+            new_checkpoints = sorted(new_checkpoints,key=cmp_to_key(compare))
+            i=0
+            for checkpoint in new_checkpoints:
+                i=i+1
+                os.rename(checkpoint_dir + '/' + checkpoint,checkpoint_dir + '/cp-' + str(int(number[0])+i) + '.ckpt')
     except KeyboardInterrupt:
         new_checkpoints = os.listdir('/home/deepanshu/Desktop/colorTraining')
         new_checkpoints = sorted(new_checkpoints,key=cmp_to_key(compare))
